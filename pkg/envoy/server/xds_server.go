@@ -21,10 +21,14 @@ import (
 	"fmt"
 	"net"
 
-	envoyv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
-	xds "github.com/envoyproxy/go-control-plane/pkg/server/v2"
+	cluster "github.com/envoyproxy/go-control-plane/envoy/service/cluster/v3"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	listener "github.com/envoyproxy/go-control-plane/envoy/service/listener/v3"
+
+	route "github.com/envoyproxy/go-control-plane/envoy/service/route/v3"
+
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	xds "github.com/envoyproxy/go-control-plane/pkg/server/v3"
 	"google.golang.org/grpc"
 )
 
@@ -65,9 +69,9 @@ func (envoyXdsServer *XdsServer) RunManagementServer() error {
 
 	// register services
 	discovery.RegisterAggregatedDiscoveryServiceServer(grpcServer, server)
-	envoyv2.RegisterClusterDiscoveryServiceServer(grpcServer, server)
-	envoyv2.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-	envoyv2.RegisterRouteDiscoveryServiceServer(grpcServer, server)
+	cluster.RegisterClusterDiscoveryServiceServer(grpcServer, server)
+	listener.RegisterListenerDiscoveryServiceServer(grpcServer, server)
+	route.RegisterRouteDiscoveryServiceServer(grpcServer, server)
 
 	errCh := make(chan error)
 	go func() {

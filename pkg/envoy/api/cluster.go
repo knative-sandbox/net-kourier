@@ -19,27 +19,31 @@ package envoy
 import (
 	"time"
 
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+
+	envoyCluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	upstreams "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 )
 
-// NewCluster generates a new v2.Cluster with the given settings.
+// NewCluster generates a new v3.Cluster with the given settings.
 func NewCluster(
 	name string,
 	connectTimeout time.Duration,
 	endpoints []*endpoint.LbEndpoint,
 	isHTTP2 bool,
-	discoveryType v2.Cluster_DiscoveryType) *v2.Cluster {
+	discoveryType envoyCluster.Cluster_DiscoveryType) *envoyCluster.Cluster {
 
-	cluster := &v2.Cluster{
+	cluster := &envoyCluster.Cluster{
 		Name: name,
-		ClusterDiscoveryType: &v2.Cluster_Type{
+		ClusterDiscoveryType: &envoyCluster.Cluster_Type{
 			Type: discoveryType,
 		},
 		ConnectTimeout: ptypes.DurationProto(connectTimeout),
-		LoadAssignment: &v2.ClusterLoadAssignment{
+		LoadAssignment: &endpoint.ClusterLoadAssignment{
 			ClusterName: name,
 			Endpoints: []*endpoint.LocalityLbEndpoints{{
 				LbEndpoints: endpoints,
@@ -49,7 +53,29 @@ func NewCluster(
 
 	if isHTTP2 {
 		cluster.Http2ProtocolOptions = &core.Http2ProtocolOptions{}
+		//cluster.TypedExtensionProtocolOptions = http2ProtocolOptions()
 	}
 
 	return cluster
+}
+
+func http2ProtocolOptions() map[string]*any.Any {
+	return map[string]*any.Any{
+		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": mustMarshalAny(
+			&upstreams.HttpProtocolOptions{
+				UpstreamProtocolOptions: &upstreams.HttpProtocolOptions_ExplicitHttpConfig_{
+					ExplicitHttpConfig: &upstreams.HttpProtocolOptions_ExplicitHttpConfig{
+						ProtocolConfig: &upstreams.HttpProtocolOptions_ExplicitHttpConfig_Http2ProtocolOptions{},
+					},
+				},
+			}),
+	}
+}
+
+func mustMarshalAny(pb proto.Message) *any.Any {
+	out, err := ptypes.MarshalAny(pb)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }
